@@ -8,30 +8,115 @@ extern "C" {
 
 #include <stdint.h>
 
+#include <driver/spi_master.h>
+#include <soc/spi_pins.h>
+
 //#define DEBUG_SHOW_FPS  (1)
 
 
-// https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/peripherals/spi_master.html#gpio-matrix-and-iomux
+#define _ENCODE_SPI_OFFSET(val,offset,width) (((val) & ((1 << (width)) - 1)) << (offset))
 
-#define _ENCODE_SPI_BUS(cs0,sclk,miso,mosi) (((cs0) << 21) | ((sclk) << 14) | ((miso) << 7) | ((mosi) << 0))
+// Macro to encode the specifics of a SPI bus
+#define _ENCODE_SPI_BUS(host,cs0,sclk,miso,mosi) (\
+  _ENCODE_SPI_OFFSET(host,20,6) | _ENCODE_SPI_OFFSET(cs0,15,6) | \
+  _ENCODE_SPI_OFFSET(sclk,10,6) | _ENCODE_SPI_OFFSET(miso,5,6) | \
+  _ENCODE_SPI_OFFSET(mosi,0,6))
 
-#define _DECODE_SPI_BUS_CS0(bus) (((bus) >> 21) & 0x1f)
-#define _DECODE_SPI_BUS_SCLK(bus) (((bus) >> 14) & 0x1f)
-#define _DECODE_SPI_BUS_MISO(bus) (((bus) >> 7) & 0x1f)
-#define _DECODE_SPI_BUS_MOSI(bus) (((bus) >> 0) & 0x1f)
+#define _DECODE_SPI_OFFSET(bus,offset,width)  (((bus) >> (offset)) & ((1 << (width)) - 1))
+
+// Macros used to extract specific components of a SPI bus.
+// Generally not used by developers.
+#define _DECODE_SPI_BUS_HOST(bus)    (_DECODE_SPI_OFFSET(bus,20,6))
+#define _DECODE_SPI_BUS_CS0(bus)     (_DECODE_SPI_OFFSET(bus,15,6))
+#define _DECODE_SPI_BUS_SCLK(bus)    (_DECODE_SPI_OFFSET(bus,10,6))
+#define _DECODE_SPI_BUS_MISO(bus)    (_DECODE_SPI_OFFSET(bus,5,6))
+#define _DECODE_SPI_BUS_MOSI(bus)    (_DECODE_SPI_OFFSET(bus,0,6))
 
 
 /**
  *  SPI Bus Options
+ *
+ *  The `_nocs` variants should be used when the CS0 pin of the
+ *  display is tied to ground.
+ *
+ *  These are specified as the default pin configurations based
+ *  on `soc/spi_pins.h`. If using a custom pin configuration (via
+ *  to iomux) or using an otherwise unsupported chip, use the
+ *  _ENCODE_SPI_BUS macro to configure a custom bus.
+ *
+ *  Target Notes:
+ *   - ESP32
+ *     - SPI2=HSPI, SPI3=VSPI
+ *     - Only the first device attached to the bus can use the CS0 pin
+ *   - ESP32-S2
+ *     - SPI2=FSPI
  */
 typedef enum DisplaySpiBus {
-    // ESP32
-    //DisplaySpiBusHspi = _ENCODE_SPI_BUS(15, 14, 12, 13),
-    //DisplaySpiBusVspi = _ENCODE_SPI_BUS(5, 18, 19, 23),
 
-    // ESP32-C3
-    DisplaySpiBus2_cs = _ENCODE_SPI_BUS(10, 6, 2, 7),
-    DisplaySpiBus2 = _ENCODE_SPI_BUS(0, 6, 2, 7)
+// These devices support SPI2
+#if (CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2 || \
+  CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3 || \
+  CONFIG_IDF_TARGET_ESP32C2 || CONFIG_IDF_TARGET_ESP32C3 || \
+  CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32H2 || \
+  CONFIG_IDF_TARGET_ESP32P4)
+
+    DisplaySpiBus2 = _ENCODE_SPI_BUS(
+        SPI2_HOST,
+        SPI2_IOMUX_PIN_NUM_CS,
+        SPI2_IOMUX_PIN_NUM_CLK,
+        SPI2_IOMUX_PIN_NUM_MISO,
+        SPI2_IOMUX_PIN_NUM_MOSI
+    ),
+    DisplaySpiBus2_nocs = _ENCODE_SPI_BUS(
+        SPI2_HOST,
+        0,
+        SPI2_IOMUX_PIN_NUM_CLK,
+        SPI2_IOMUX_PIN_NUM_MISO,
+        SPI2_IOMUX_PIN_NUM_MOSI
+    ),
+
+#endif
+
+// These device support octal SPI alternate SPI2 pins
+#if CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32P4
+
+    DisplaySpiBus2oct = _ENCODE_SPI_BUS(
+        SPI2_HOST,
+        SPI2_IOMUX_PIN_NUM_CS_OCT,
+        SPI2_IOMUX_PIN_NUM_CLK_OCT,
+        SPI2_IOMUX_PIN_NUM_MISO_OCT,
+        SPI2_IOMUX_PIN_NUM_MOSI_OCT
+    ),
+    DisplaySpiBus2oct_nocs = _ENCODE_SPI_BUS(
+        SPI2_HOST,
+        SPI2_IOMUX_PIN_NUM_CS_OCT,
+        SPI2_IOMUX_PIN_NUM_CLK_OCT,
+        SPI2_IOMUX_PIN_NUM_MISO_OCT,
+        SPI2_IOMUX_PIN_NUM_MOSI_OCT
+    ),
+
+#endif
+
+// These devices support SPI3
+#if CONFIG_IDF_TARGET_ESP32
+
+    DisplaySpiBus3 = _ENCODE_SPI_BUS(
+        SPI3_HOST,
+        SPI3_IOMUX_PIN_NUM_CS,
+        SPI3_IOMUX_PIN_NUM_CLK,
+        SPI3_IOMUX_PIN_NUM_MISO,
+        SPI3_IOMUX_PIN_NUM_MOSI
+    ),
+    DisplaySpiBus3_nocs = _ENCODE_SPI_BUS(
+        SPI3_HOST,
+        0,
+        SPI3_IOMUX_PIN_NUM_CLK,
+        SPI3_IOMUX_PIN_NUM_MISO,
+        SPI3_IOMUX_PIN_NUM_MOSI
+    ),
+
+#endif
+
 } DisplaySpiBus;
 
 
@@ -43,12 +128,25 @@ typedef enum DisplayRotation {
     DisplayRotationPinsLeft
 } DisplayRotation;
 
+/**
+ *  Fragment dimensions.
+ */
 extern const uint8_t DisplayFragmentHeight;
 extern const uint8_t DisplayFragmentWidth;
+
+/**
+ *  The number of fragments per screen.
+ */
 extern const uint8_t DisplayFragmentCount;
 
 /**
- *  A function called per fragment to render to the buffer.
+ *  The callback function called per fragment to render to the buffer.
+ *
+ *  When called the buffer should be updated with RGB565 colors (2 bytes)
+ *  per pixel, starting at the source line y0 (0 is the top line)
+ *  populating DisplayFragmentWidth wide and DisplayFragmentHeight high.
+ *
+ *  The %%context%% is what was provided to the init call.
  */
 typedef void (*RenderFunc)(uint8_t *buffer, uint32_t y0, void *context);
 
@@ -78,9 +176,6 @@ DisplayContext display_init(DisplaySpiBus spiBus, uint8_t pinDC,
  *  without calling init again first.
  */
 void display_free(DisplayContext context);
-
-//uint32_t display_renderScene(DisplayContext context, SceneContext scene);
-// uint32_t display_renderScene(DisplayContext context);
 
 /**
  *  Renders the next fragment, blocking the current task until

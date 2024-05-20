@@ -105,6 +105,7 @@ typedef enum Command {
     CommandNVGAMCTRL              = 0xe1,      // Negative Voltage Gamma Control (14 parameters)
 
     CommandDone                   = 0xfd,      // Pseudo-Command; internal use only; done commands
+    CommandResetPin               = 0xfe,      // Pseudo-Command; internal use only; set reset pin value (1 parameter)
     CommandWait                   = 0xff,      // Pseudo-Command; internal use only; wait Xms (1 parameter)
 } Command;
 
@@ -112,6 +113,10 @@ typedef enum Command {
 // ST7789 Initialization Sequence
 // Place data into DRAM. Constant data gets placed into DROM by default, which is not accessible by DMA.
 DRAM_ATTR static const uint8_t st7789_init_sequence[] = {
+    CommandResetPin,   0,
+    CommandWait,       1,
+    CommandResetPin,   1,
+    CommandWait,       6,
     CommandMADCTL,     1,   0,
     CommandCOLMOD,     1,   (CommandCOLMOD_1_format_65k | CommandCOLMOD_1_width_16bit),
     CommandPORCTRL,    5,   0x0c, 0x0c, 0x00, 0x33, 0x33,
@@ -235,14 +240,6 @@ static void st7789_init(_DisplayContext *context, DisplayRotation rotation) {
     //     gpio_set_level(10, 0);
     // }
 
-    // Reset the display; reset is negative active (T_RW; requires 10us)
-    gpio_set_level(context->pinReset, 0);
-    delay(1);
-
-    // Wait for hardware reset (T_RT; 5ms for ) to complete (120ms needed if leaving sleep)
-    gpio_set_level(context->pinReset, 1);
-    delay(6);
-
     uint32_t cmdIndex = 0;
     while (true) {
         uint8_t cmd = st7789_init_sequence[cmdIndex++];
@@ -253,7 +250,12 @@ static void st7789_init(_DisplayContext *context, DisplayRotation rotation) {
             continue;
         }
 
-        // Done psedo-command...        
+        if (cmd == CommandResetPin) {
+            gpio_set_level(context->pinReset, st7789_init_sequence[cmdIndex++]);
+            continue;
+        }
+
+        // Done psedo-command...
         if (cmd == CommandDone) { break; }
 
         st7789_send(context, MessageTypeCommand, &cmd, 1);
@@ -384,21 +386,7 @@ DisplayContext display_init(DisplaySpiBus spiBus, uint8_t pinDC,
     context->transactions[3].flags = 0;
 
     // Get the selected device macro; @TODO: encode this into SPI_BUS
-    spi_host_device_t hostDevice;
-    switch (spiBus) {
-        case DisplaySpiBus2:
-            hostDevice = SPI2_HOST;
-            break;
-        //case DisplaySpiBusHspi:
-        //    hostDevice = HSPI_HOST;
-        //    break
-        //case DisplaySpiBusVspi:
-        //    hostDevice = VSPI_HOST;
-        //    break
-        default:
-            printf("[display] unknown SPI host\n");
-            assert(0);
-    }
+    spi_host_device_t hostDevice = _DECODE_SPI_BUS_HOST(spiBus);
 
     // Bus Configuration
     {
