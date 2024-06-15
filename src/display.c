@@ -5,7 +5,6 @@
  */
 
 
-#include "./firefly-display.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -16,6 +15,9 @@
 #include <driver/gpio.h>
 #include <hal/gpio_ll.h>
 #include "soc/gpio_struct.h"
+
+#include "firefly-display.h"
+#include "commands.h"
 
 // If using a display with the CS pin pulled low
 //#define NO_CS_PIN  (1)
@@ -31,83 +33,10 @@
 #endif
 
 // The height of each fragment; this **MUST** be a factor of 240 (or there will be infinite loops)
-const uint8_t DisplayFragmentHeight = FRAGMENT_HEIGHT;
-const uint8_t DisplayFragmentWidth = DISPLAY_WIDTH;
+const uint8_t FfxDisplayFragmentHeight = FRAGMENT_HEIGHT;
+const uint8_t FfxDisplayFragmentWidth = DISPLAY_WIDTH;
 
-const uint8_t DisplayFragmentCount = DISPLAY_HEIGHT / FRAGMENT_HEIGHT;
-
-
-// Common ST7789 Commands and Parameter Components
-typedef enum Command {
-    CommandNOP                    = 0x00,      // No-op
-    CommandSWRESET                = 0x01,      // Software Reset
-    CommandSLPOUT                 = 0x11,      // Sleep Out
-    CommandNORON                  = 0x13,      // Normal Display Mode On
-
-    CommandINVOFF                 = 0x20,      // Display Inversion Off
-    CommandINVON                  = 0x21,      // Display Inversion On
-    CommandDISPON                 = 0x29,      // Display On
-
-    CommandCASET                  = 0x2a,      // Column Address Set (4 parameters)
-    CommandRASET                  = 0x2b,      // Row Address Set (4 parameters)
-    CommandRAMWR                  = 0x2c,      // Memory Write (N parameters)
-
-    CommandMADCTL                 = 0x36,      // Memory Data Access Control (1 parameter)
-    CommandMADCTL_1_page          = (1 << 7),  // - Bottom to Top (vs. Top to Bottom)
-    CommandMADCTL_1_column        = (1 << 6),  // - Right to Left (vs. Left to Right)
-    CommandMADCTL_1_page_column   = (1 << 5),  // - Reverse Mode (vs. Normal Mode)
-    CommandMADCTL_1_line_address  = (1 << 4),  // - LCD Refresh Bottom to Top (vs. LCD Refresh Top to Bottom)
-    CommandMADCTL_1_rgb           = (1 << 3),  // - BGR (vs. RGB)
-    CommandMADCTL_1_data_latch    = (1 << 2),  // - LCD Refresh Right to Left (vs. LCD Refresh Left to Right)
-
-    CommandCOLMOD                 = 0x3a,      // Interface Pixel Format (1 parameter)
-    CommandCOLMOD_1_format_65k    = 0x50,      // 65k colors
-    CommandCOLMOD_1_format_262k   = 0x30,      // 262k colors
-    CommandCOLMOD_1_width_12bit   = 0x03,      // 12-bit pixels
-    CommandCOLMOD_1_width_16bit   = 0x05,      // 16-bit pixels
-    CommandCOLMOD_1_width_18bit   = 0x06,      // 18-bit pixels
-
-    CommandPORCTRL                = 0xb2,      // Porch Setting (5 parameters
-    CommandGCTRL                  = 0xb7,      // Gate Control (1 parameter)
-    CommandVCOMS                  = 0xbb,      // VCOM Setting (1 parameter)
-
-    CommandLCMCTRL                = 0xc0,      // LCM Control (@TODO: Look more into this!) (1 parameter)
-    CommandLCMCTRL_1_XMY          = (1 << 6),  // - XOR MY setting in command 36h
-    CommandLCMCTRL_1_XBGR         = (1 << 5),  // - XOR RGB setting in command 36h
-    CommandLCMCTRL_1_XREV         = (1 << 4),  // - XOR inverse setting in command 21h
-    CommandLCMCTRL_1_XMX          = (1 << 3),  // - XOR MX setting in command 36h
-    CommandLCMCTRL_1_XMH          = (1 << 2),  // - this bit can reverse source output order and only support for RGB interface without RAM mode
-    CommandLCMCTRL_1_XMV          = (1 << 1),  // - XOR MV setting in command 36h
-    CommandLCMCTRL_1_XGS          = (1 << 0),  // - XOR GS setting in command E4h
-
-    CommandVDVVRHEN               = 0xc2,      // VDV and VRH Command Enable (2 parameters)
-    CommandVRHS                   = 0xc3,      // VRH Set (1 parameter)
-    CommandVDVS                   = 0xc4,      // VDV Set (1 parameter)
-
-    CommandFRCTRL2                = 0xc6,      // Frame Rate Control in Normal Mode (1 parameter)
-    CommandFRCTRL2_1_60hz         = 0x0f,      // - 60hz
-
-    CommandPWCTRL1                = 0xd0,      // Power Control 1 (2 parameters)
-    CommandPWCTRL1_1              = 0xa4,      // - First parameter
-    CommandPWCTRL1_2_AVDD_6_4     = 0x00,      // - AVD 6.4v
-    CommandPWCTRL1_2_AVDD_6_6     = 0x40,      // - AVD 6.6v
-    CommandPWCTRL1_2_AVDD_6_8     = 0x80,      // - AVD 6.8v
-    CommandPWCTRL1_2_AVCL_4_4     = 0x00,      // - AVCL -4.4v
-    CommandPWCTRL1_2_AVCL_4_6     = 0x10,      // - AVCL -4.6v
-    CommandPWCTRL1_2_AVCL_4_8     = 0x20,      // - AVCL -4.8v
-    CommandPWCTRL1_2_AVCL_5_0     = 0x30,      // - AVCL -5.0v
-    CommandPWCTRL1_2_VDS_2_19     = 0x00,      // - AVD 2.19v
-    CommandPWCTRL1_2_VDS_2_3      = 0x01,      // - AVD 2.3v
-    CommandPWCTRL1_2_VDS_2_4      = 0x02,      // - AVD 2.4v
-    CommandPWCTRL1_2_VDS_2_51     = 0x03,      // - AVD 2.51v
-
-    CommandPVGAMCTRL              = 0xe0,      // Positive Voltage Gamma Control (14 parameters)
-    CommandNVGAMCTRL              = 0xe1,      // Negative Voltage Gamma Control (14 parameters)
-
-    CommandDone                   = 0xfd,      // Pseudo-Command; internal use only; done commands
-    CommandResetPin               = 0xfe,      // Pseudo-Command; internal use only; set reset pin value (1 parameter)
-    CommandWait                   = 0xff,      // Pseudo-Command; internal use only; wait Xms (1 parameter)
-} Command;
+const uint8_t FfxDisplayFragmentCount = DISPLAY_HEIGHT / FRAGMENT_HEIGHT;
 
 
 // ST7789 Initialization Sequence
@@ -148,9 +77,9 @@ typedef enum MessageType {
 } MessageType;
 
 
-typedef struct _DisplayContext {
+typedef struct _Context {
     // The render function to use when rendering a fragment to the buffer
-    RenderFunc renderFunc;
+    FfxRenderFunc renderFunc;
     void *context;
 
     // The SPI device (low-speed during initialization, then upgraded to high-speed)
@@ -171,13 +100,13 @@ typedef struct _DisplayContext {
 
     // The co-routine state
     uint8_t currentY;
-    uint32_t frame;
+    uint32_t frame;  // @todo: unused?
     uint16_t fps;
 
     // Gather statistics on frame rate
     uint16_t frameCount;
     uint32_t t0;
-} _DisplayContext;
+} _Context;
 
 static void delay(uint32_t duration) {
     vTaskDelay((duration + portTICK_PERIOD_MS - 1) / portTICK_PERIOD_MS);
@@ -187,12 +116,12 @@ static uint32_t ticks() {
     return xTaskGetTickCount();
 }
 
-static void* st7789_wrapTransaction(_DisplayContext *context, MessageType dc) {
+static void* st7789_wrapTransaction(_Context *context, MessageType dc) {
     return (void*)((dc << 7) | context->pinDC);
 }
 
 // This is only used during initialization
-static void st7789_send(_DisplayContext *context, MessageType dc, const uint8_t *data, int length) {
+static void st7789_send(_Context *context, MessageType dc, const uint8_t *data, int length) {
     if (length == 0) { return; }
 
     // Create the SPI transaction
@@ -226,7 +155,7 @@ static void IRAM_ATTR st7789_spi_pre_transfer_callback(spi_transaction_t *txn) {
 }
 
 // Initialize all pins and send the initialization sequence to the display
-static void st7789_init(_DisplayContext *context, DisplayRotation rotation) {
+static void st7789_init(_Context *context, FfxDisplayRotation rotation) {
     // Initialize non-SPI GPIOs (this is critical, especially if one of these pins is
     // part of the native SPI pins, even if the signal is set to -1)
     gpio_reset_pin(context->pinDC);
@@ -272,10 +201,10 @@ static void st7789_init(_DisplayContext *context, DisplayRotation rotation) {
         if (cmd == CommandMADCTL) {
             uint8_t operand = 0;
             switch (rotation) {
-                case DisplayRotationPinsTop:
+                case FfxDisplayRotationPinsTop:
                     operand = 0;
                     break;
-                case DisplayRotationPinsLeft:
+                case FfxDisplayRotationPinsLeft:
                     operand = (CommandMADCTL_1_page_column | CommandMADCTL_1_column);
                     break;
             }
@@ -295,14 +224,14 @@ static void st7789_init(_DisplayContext *context, DisplayRotation rotation) {
 // for these transactions to complete. Between the calls to
 // st7789_asend_fragment and st7789_await_fragment the CPU is
 // free to perform other tasks.
-static void st7789_asend_fragment(_DisplayContext *context) {
+static void st7789_asend_fragment(_Context *context) {
 
     // The current y position
     uint32_t y = context->currentY;
     context->transactions[1].tx_data[0] = y >> 8;                           // Start row (high)
     context->transactions[1].tx_data[1] = y & 0xff;                         // start row (low)
-    context->transactions[1].tx_data[2] = (y + DisplayFragmentHeight - 1) >> 8;    // End row (high)
-    context->transactions[1].tx_data[3] = (y + DisplayFragmentHeight - 1) & 0xff;  // End row (low)
+    context->transactions[1].tx_data[2] = (y + FfxDisplayFragmentHeight - 1) >> 8;    // End row (high)
+    context->transactions[1].tx_data[3] = (y + FfxDisplayFragmentHeight - 1) & 0xff;  // End row (low)
 
     // Fragment data
     context->transactions[3].tx_buffer = context->fragments[context->inflightFragment];
@@ -319,7 +248,7 @@ static void st7789_asend_fragment(_DisplayContext *context) {
 
 // Wait for all the asynchronously sent transactions to complete.
 // See: st7789_asend_fragment
-static void st7789_await_fragment(_DisplayContext *context) {
+static void st7789_await_fragment(_Context *context) {
 
     // Wait for all in-flight transactions are done
     spi_transaction_t *transaction;
@@ -332,17 +261,17 @@ static void st7789_await_fragment(_DisplayContext *context) {
 // Initialize the display driver for the ST7789 on a SPI bus. This
 // requires using malloc because the memory acquired must be
 // DMA-compatible.
-DisplayContext display_init(DisplaySpiBus spiBus, uint8_t pinDC,
-        uint8_t pinReset, DisplayRotation rotation,
-        RenderFunc renderFunc, void *renderContext) {
+FfxDisplayContext ffx_display_init(FfxDisplaySpiBus spiBus, uint8_t pinDC,
+        uint8_t pinReset, FfxDisplayRotation rotation,
+        FfxRenderFunc renderFunc, void *renderContext) {
 
     // Check the dimensions are safe (the #error checks this too)
-    assert((DISPLAY_HEIGHT % DisplayFragmentHeight) == 0);
+    assert((DISPLAY_HEIGHT % FfxDisplayFragmentHeight) == 0);
 
-    _DisplayContext *context = malloc(sizeof(_DisplayContext));
-    memset(context, 0, sizeof(_DisplayContext));
+    _Context *context = malloc(sizeof(_Context));
+    memset(context, 0, sizeof(_Context));
     for (int i = 0; i < 2; i++) {
-        uint8_t *data = heap_caps_malloc(DISPLAY_WIDTH * DisplayFragmentHeight * 2, MALLOC_CAP_DMA);
+        uint8_t *data = heap_caps_malloc(DISPLAY_WIDTH * FfxDisplayFragmentHeight * 2, MALLOC_CAP_DMA);
         assert(data != NULL && (((int)(data)) % 4) == 0);
         context->fragments[i] = data;
     }
@@ -381,7 +310,7 @@ DisplayContext display_init(DisplaySpiBus spiBus, uint8_t pinDC,
     context->transactions[2].user = st7789_wrapTransaction(context, MessageTypeCommand);
 
     // Memory Write - Value (remove the SPI_TRANS_USE_TXDATA flag)
-    context->transactions[3].length = DISPLAY_WIDTH * 8 * 2 * DisplayFragmentHeight;
+    context->transactions[3].length = DISPLAY_WIDTH * 8 * 2 * FfxDisplayFragmentHeight;
     context->transactions[3].user = st7789_wrapTransaction(context, MessageTypeData);
     context->transactions[3].flags = 0;
 
@@ -394,7 +323,7 @@ DisplayContext display_init(DisplaySpiBus spiBus, uint8_t pinDC,
             .miso_io_num = -1,    // _DECODE_SPI_BUS_MISO(spiBus),
             .mosi_io_num = _DECODE_SPI_BUS_MOSI(spiBus),
             .sclk_io_num = _DECODE_SPI_BUS_SCLK(spiBus),
-            .max_transfer_sz = DisplayFragmentHeight * DISPLAY_WIDTH * 2 + 8,
+            .max_transfer_sz = FfxDisplayFragmentHeight * DISPLAY_WIDTH * 2 + 8,
             .quadwp_io_num = -1,
             .quadhd_io_num = -1,
             .flags = 0
@@ -469,23 +398,23 @@ DisplayContext display_init(DisplaySpiBus spiBus, uint8_t pinDC,
 //#define RGB_LO(V)  ((((V) & 0xfc) << 3) | ((V) & 0xf8) >> 3)
 
 // Release the resources for this display driver
-void display_free(DisplayContext context) {
-    heap_caps_free(((_DisplayContext*)context)->fragments[0]);
-    heap_caps_free(((_DisplayContext*)context)->fragments[1]);
+void ffx_display_free(FfxDisplayContext context) {
+    heap_caps_free(((_Context*)context)->fragments[0]);
+    heap_caps_free(((_Context*)context)->fragments[1]);
     free(context);
 }
 
-uint16_t display_fps(DisplayContext _context) {
-    _DisplayContext *context = _context;
+uint16_t ffx_display_fps(FfxDisplayContext _context) {
+    _Context *context = _context;
     if (!context) { return 0; }
     return context->fps;
 }
 
 // Render a fragment against the scene graph. This and the scene graph handles
 // snapshots of its state so it can be updated freely.
-uint32_t display_renderFragment(DisplayContext _context) {
+uint32_t ffx_display_renderFragment(FfxDisplayContext _context) {
 
-    _DisplayContext *context = _context;
+    _Context *context = _context;
 
     context->frame++;
 
@@ -509,7 +438,7 @@ uint32_t display_renderFragment(DisplayContext _context) {
     // Send the new fragment we just generated in the backbuffer (asynchronously)
     st7789_asend_fragment(context);
 
-    context->currentY += DisplayFragmentHeight;
+    context->currentY += FfxDisplayFragmentHeight;
 
     // The last fragment...
     if (context->currentY == DISPLAY_HEIGHT) {

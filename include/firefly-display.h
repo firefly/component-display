@@ -51,7 +51,7 @@ extern "C" {
  *   - ESP32-S2
  *     - SPI2=FSPI
  */
-typedef enum DisplaySpiBus {
+typedef enum FfxDisplaySpiBus {
 
 // These devices support SPI2
 #if (CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2 || \
@@ -60,14 +60,14 @@ typedef enum DisplaySpiBus {
   CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32H2 || \
   CONFIG_IDF_TARGET_ESP32P4)
 
-    DisplaySpiBus2 = _ENCODE_SPI_BUS(
+    FfxDisplaySpiBus2 = _ENCODE_SPI_BUS(
         SPI2_HOST,
         SPI2_IOMUX_PIN_NUM_CS,
         SPI2_IOMUX_PIN_NUM_CLK,
         SPI2_IOMUX_PIN_NUM_MISO,
         SPI2_IOMUX_PIN_NUM_MOSI
     ),
-    DisplaySpiBus2_nocs = _ENCODE_SPI_BUS(
+    FfxDisplaySpiBus2_nocs = _ENCODE_SPI_BUS(
         SPI2_HOST,
         0,
         SPI2_IOMUX_PIN_NUM_CLK,
@@ -80,14 +80,14 @@ typedef enum DisplaySpiBus {
 // These device support octal SPI alternate SPI2 pins
 #if CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32P4
 
-    DisplaySpiBus2oct = _ENCODE_SPI_BUS(
+    FfxDisplaySpiBus2oct = _ENCODE_SPI_BUS(
         SPI2_HOST,
         SPI2_IOMUX_PIN_NUM_CS_OCT,
         SPI2_IOMUX_PIN_NUM_CLK_OCT,
         SPI2_IOMUX_PIN_NUM_MISO_OCT,
         SPI2_IOMUX_PIN_NUM_MOSI_OCT
     ),
-    DisplaySpiBus2oct_nocs = _ENCODE_SPI_BUS(
+    FfxDisplaySpiBus2oct_nocs = _ENCODE_SPI_BUS(
         SPI2_HOST,
         SPI2_IOMUX_PIN_NUM_CS_OCT,
         SPI2_IOMUX_PIN_NUM_CLK_OCT,
@@ -100,14 +100,14 @@ typedef enum DisplaySpiBus {
 // These devices support SPI3
 #if CONFIG_IDF_TARGET_ESP32
 
-    DisplaySpiBus3 = _ENCODE_SPI_BUS(
+    FfxDisplaySpiBus3 = _ENCODE_SPI_BUS(
         SPI3_HOST,
         SPI3_IOMUX_PIN_NUM_CS,
         SPI3_IOMUX_PIN_NUM_CLK,
         SPI3_IOMUX_PIN_NUM_MISO,
         SPI3_IOMUX_PIN_NUM_MOSI
     ),
-    DisplaySpiBus3_nocs = _ENCODE_SPI_BUS(
+    FfxDisplaySpiBus3_nocs = _ENCODE_SPI_BUS(
         SPI3_HOST,
         0,
         SPI3_IOMUX_PIN_NUM_CLK,
@@ -117,27 +117,27 @@ typedef enum DisplaySpiBus {
 
 #endif
 
-} DisplaySpiBus;
+} FfxDisplaySpiBus;
 
 
 /**
  *  This assumes the pins on the board are opposite the ribbon side.
  */
-typedef enum DisplayRotation {
-    DisplayRotationPinsTop,
-    DisplayRotationPinsLeft
-} DisplayRotation;
+typedef enum FfxDisplayRotation {
+    FfxDisplayRotationPinsTop,
+    FfxDisplayRotationPinsLeft
+} FfxDisplayRotation;
 
 /**
  *  Fragment dimensions.
  */
-extern const uint8_t DisplayFragmentHeight;
-extern const uint8_t DisplayFragmentWidth;
+extern const uint8_t FfxDisplayFragmentHeight;
+extern const uint8_t FfxDisplayFragmentWidth;
 
 /**
  *  The number of fragments per screen.
  */
-extern const uint8_t DisplayFragmentCount;
+extern const uint8_t FfxDisplayFragmentCount;
 
 /**
  *  The callback function called per fragment to render to the buffer.
@@ -148,14 +148,14 @@ extern const uint8_t DisplayFragmentCount;
  *
  *  The %%context%% is what was provided to the init call.
  */
-typedef void (*RenderFunc)(uint8_t *buffer, uint32_t y0, void *context);
+typedef void (*FfxRenderFunc)(uint8_t *buffer, uint32_t y0, void *context);
 
 /**
  *  Display Context Object.
  *
  *  This is intentionally opaque; do not inspect or rely on internals.
  */
-typedef void* DisplayContext;
+typedef void* FfxDisplayContext;
 
 /**
  *  Initializes the display, sending all necessary commands to
@@ -165,9 +165,9 @@ typedef void* DisplayContext;
  *  This allocates DMA-compatible RAM and returns NULL if the
  *  memory cannot be allocated.
  */
-DisplayContext display_init(DisplaySpiBus spiBus, uint8_t pinDC,
-    uint8_t pinReset, DisplayRotation rotation,
-    RenderFunc renderFunc, void *ctx);
+FfxDisplayContext ffx_display_init(FfxDisplaySpiBus spiBus, uint8_t pinDC,
+    uint8_t pinReset, FfxDisplayRotation rotation,
+    FfxRenderFunc renderFunc, void *ctx);
 
 /**
  *  Release all allocated buffers.
@@ -175,7 +175,7 @@ DisplayContext display_init(DisplaySpiBus spiBus, uint8_t pinDC,
  *  The DisplayContext must not be used after calling this
  *  without calling init again first.
  */
-void display_free(DisplayContext context);
+void ffx_display_free(FfxDisplayContext context);
 
 /**
  *  Renders the next fragment, blocking the current task until
@@ -184,12 +184,12 @@ void display_free(DisplayContext context);
  *  This returns 1 if the last fragment of the frame was rendered,
  *  otherwise returns 0.
  */
-uint32_t display_renderFragment(DisplayContext context);
+uint32_t ffx_display_renderFragment(FfxDisplayContext context);
 
 /**
  *  Returns the current FPS statistic.
  */
-uint16_t display_fps(DisplayContext context);
+uint16_t ffx_display_fps(FfxDisplayContext context);
 
 
 #ifdef __cplusplus
