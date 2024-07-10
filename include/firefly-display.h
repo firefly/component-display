@@ -121,15 +121,16 @@ typedef enum FfxDisplaySpiBus {
 
 
 /**
- *  This assumes the pins on the board are opposite the ribbon side.
+ *  The side of the display the ribbon is protruding from, used
+ *  to specify display rotation.
  */
 typedef enum FfxDisplayRotation {
-    FfxDisplayRotationPinsTop,
-    FfxDisplayRotationPinsLeft
+    FfxDisplayRotationRibbonBottom,
+    FfxDisplayRotationRibbonRight
 } FfxDisplayRotation;
 
 /**
- *  Fragment dimensions.
+ *  The Fragment dimensions.
  */
 extern const uint8_t FfxDisplayFragmentHeight;
 extern const uint8_t FfxDisplayFragmentWidth;
@@ -181,7 +182,7 @@ void ffx_display_free(FfxDisplayContext context);
  *  Renders the next fragment, blocking the current task until
  *  complete, calling the [[RenderFunc]] with the fragment buffer.
  *
- *  This returns 1 if the last fragment of the frame was rendered,
+ *  Returns 1 if the last fragment of the frame was rendered,
  *  otherwise returns 0.
  */
 uint32_t ffx_display_renderFragment(FfxDisplayContext context);

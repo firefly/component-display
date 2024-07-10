@@ -201,10 +201,10 @@ static void st7789_init(_Context *context, FfxDisplayRotation rotation) {
         if (cmd == CommandMADCTL) {
             uint8_t operand = 0;
             switch (rotation) {
-                case FfxDisplayRotationPinsTop:
+                case FfxDisplayRotationRibbonBottom:
                     operand = 0;
                     break;
-                case FfxDisplayRotationPinsLeft:
+                case FfxDisplayRotationRibbonRight:
                     operand = (CommandMADCTL_1_page_column | CommandMADCTL_1_column);
                     break;
             }
@@ -271,8 +271,10 @@ FfxDisplayContext ffx_display_init(FfxDisplaySpiBus spiBus, uint8_t pinDC,
     _Context *context = malloc(sizeof(_Context));
     memset(context, 0, sizeof(_Context));
     for (int i = 0; i < 2; i++) {
-        uint8_t *data = heap_caps_malloc(DISPLAY_WIDTH * FfxDisplayFragmentHeight * 2, MALLOC_CAP_DMA);
+        size_t byteCount = DISPLAY_WIDTH * FfxDisplayFragmentHeight * 2;
+        uint8_t *data = heap_caps_malloc(byteCount, MALLOC_CAP_DMA);
         assert(data != NULL && (((int)(data)) % 4) == 0);
+        memset(data, 0, byteCount);
         context->fragments[i] = data;
     }
 
