@@ -19,7 +19,8 @@
 #include "firefly-display.h"
 #include "commands.h"
 
-// If using a display with the CS pin pulled low
+// If using a display with the CS pin pulled low;
+// this is now managed by the bus encoding
 //#define NO_CS_PIN  (1)
 
 #define DISPLAY_HEIGHT    240
@@ -457,9 +458,6 @@ uint32_t ffx_display_renderFragment(FfxDisplayContext _context) {
             context->frameCount = 0;
             context->t0 = now;
         }
-
-        // Snapshot the existing scene graph state for the next frame
-        //scene_sequence(scene);
 
         // Return that the frame is complete
         return 1;
