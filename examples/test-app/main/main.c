@@ -16,7 +16,7 @@
 #define PIN_DISPLAY_RESET  (5)
 
 static void delay(uint32_t duration) {
-    vTaskDelay((duration + portTICK_PERIOD_MS - 1) / portTICK_PERIOD_MS);
+  vTaskDelay((duration + portTICK_PERIOD_MS - 1) / portTICK_PERIOD_MS);
 }
 
 // Copy the logo.h onto the display
@@ -32,7 +32,8 @@ void renderFunc(uint8_t *buffer, uint32_t y0, void *context) {
 }
 
 void app_main(void) {
-  FfxDisplayContext display = ffx_display_init(DISPLAY_BUS, PIN_DISPLAY_DC, PIN_DISPLAY_RESET, FfxDisplayRotationPinsLeft, renderFunc, NULL);
+  FfxDisplayContext display = ffx_display_init(DISPLAY_BUS, PIN_DISPLAY_DC,
+    PIN_DISPLAY_RESET, FfxDisplayRotationRibbonRight, renderFunc, NULL);
 
   while (1) {
     uint32_t frameDone = ffx_display_renderFragment(display);
