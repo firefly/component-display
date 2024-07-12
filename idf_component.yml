@@ -1,7 +1,7 @@
 ## IDF Component Manager Manifest File
 
 description: "A simple fragment-based display driver for the st7789 displays."
-licence: "MIT"
+license: "MIT"
 version: "0.0.1"
 
 dependencies:
