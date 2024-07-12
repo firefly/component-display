@@ -20,3 +20,8 @@ discussion: https://github.com/firefly/component-display/discussions
 issues: "https://github.com/firefly/component-display/issues"
 repository: git@github.com:firefly/component-display.git
 url: https://docs.firefly.app/v0/components/display/
+
+files:
+  exclude:
+    - ".iterm2-project"
+    - ".gitignore"
