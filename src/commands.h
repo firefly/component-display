@@ -29,6 +29,18 @@ typedef enum Command {
     CommandCOLMOD_1_width_16bit   = 0x05,      // 16-bit pixels
     CommandCOLMOD_1_width_18bit   = 0x06,      // 18-bit pixels
 
+    CommandRAMCTRL                 = 0xb0,      // RAM Control (2 parameters)
+    CommandRAMCTRL_1               = 0x00,      // Base parameter
+    CommandRAMCTRL_2               = 0xc0,      // Base parameter; MUST include
+    CommandRAMCTRL_2_endian_little = 0x08,      // Endian select; little-endian
+    CommandRAMCTRL_2_width_6bit    = 0x04,      // RGB bus width; 6 bit
+
+    // How to translate a value to bit-6 of R and B
+    CommandRAMCTRL_2_trans_zero    = 0x00,      // translate; 0 => Rlsb, 0 => Blsb
+    CommandRAMCTRL_2_trans_one     = 0x10,      // translate; 1 => Rlsb, 1 => Blsb
+    CommandRAMCTRL_2_trans_msb     = 0x20,      // translate; Rmsb => Rlsb, Bmsb => Blsb
+    CommandRAMCTRL_2_trans_green   = 0x30,      // translate; Gmsb => Rlsb + Blsb
+
     CommandPORCTRL                = 0xb2,      // Porch Setting (5 parameters
     CommandGCTRL                  = 0xb7,      // Gate Control (1 parameter)
     CommandVCOMS                  = 0xbb,      // VCOM Setting (1 parameter)

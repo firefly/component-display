@@ -48,27 +48,39 @@ DRAM_ATTR static const uint8_t st7789_init_sequence[] = {
     CommandResetPin,   1,
     CommandWait,       6,
     CommandMADCTL,     1,   0,
-    CommandCOLMOD,     1,   (CommandCOLMOD_1_format_65k | CommandCOLMOD_1_width_16bit),
+    CommandCOLMOD,     1,
+      (CommandCOLMOD_1_format_65k | CommandCOLMOD_1_width_16bit),
+    CommandRAMCTRL,    2,
+      (CommandRAMCTRL_1),
+      (CommandRAMCTRL_2 | CommandRAMCTRL_2_endian_little | CommandRAMCTRL_2_trans_msb),
     CommandPORCTRL,    5,   0x0c, 0x0c, 0x00, 0x33, 0x33,
     CommandGCTRL,      1,   0x45, // @TODO: Fill in ; Vgh=13.65V, Vgl=-10.43V
     CommandVCOMS,      1,   0x2b, // @TODO: Fill in ; VCOM=1.175V
-    CommandLCMCTRL,    1,   (CommandLCMCTRL_1_XBGR | CommandLCMCTRL_1_XMX | CommandLCMCTRL_1_XMH),
+    CommandLCMCTRL,    1,
+      (CommandLCMCTRL_1_XBGR | CommandLCMCTRL_1_XMX | CommandLCMCTRL_1_XMH),
     CommandVDVVRHEN,   2,   0x01, 0xff,
     CommandVRHS,       1,   0x11, // @TODO: Fill in ; Vap=4.4+
     CommandVDVS,       1,   0x20, // @TODO: Fill in ; VDV=0
     CommandFRCTRL2,    1,   (CommandFRCTRL2_1_60hz),
-    CommandPWCTRL1,    2,   CommandPWCTRL1_1,
-                            (CommandPWCTRL1_2_AVDD_6_8 | CommandPWCTRL1_2_AVCL_4_8 | CommandPWCTRL1_2_VDS_2_3),
-    CommandPVGAMCTRL, 14,   0xd0, 0x00, 0x05, 0x0e, 0x15, 0x0d, 0x37, 0x43, 0x47, 0x09,
-                            0x15, 0x12, 0x16, 0x19,
-    CommandNVGAMCTRL, 14,   0xd0, 0x00, 0x05, 0x0d, 0x0c, 0x06, 0x2d, 0x44, 0x40, 0x0e,
-                            0x1c, 0x18, 0x16, 0x19,
+    CommandPWCTRL1,    2,
+      CommandPWCTRL1_1,
+      (CommandPWCTRL1_2_AVDD_6_8 | CommandPWCTRL1_2_AVCL_4_8 | CommandPWCTRL1_2_VDS_2_3),
+    CommandPVGAMCTRL, 14,
+      0xd0, 0x00, 0x05, 0x0e, 0x15, 0x0d, 0x37, 0x43, 0x47, 0x09,
+      0x15, 0x12, 0x16, 0x19,
+    CommandNVGAMCTRL, 14,
+      0xd0, 0x00, 0x05, 0x0d, 0x0c, 0x06, 0x2d, 0x44, 0x40, 0x0e,
+      0x1c, 0x18, 0x16, 0x19,
     CommandSLPOUT,     0,
     CommandWait,       6, // only need to wait for 5ms
     CommandDISPON,     0,
     CommandINVON,      0,
     CommandNORON,      0,
-    CommandCASET,      4,   (0 >> 8), (0 & 0xff), ((DISPLAY_WIDTH - 1) >> 8), ((DISPLAY_WIDTH - 1) & 0xff),
+    CommandCASET,      4,
+      (0 >> 8),
+      (0 & 0xff),
+      ((DISPLAY_WIDTH - 1) >> 8),
+      ((DISPLAY_WIDTH - 1) & 0xff),
     CommandDone
 };
 
