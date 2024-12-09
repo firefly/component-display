@@ -1,0 +1,42 @@
+name: E2E tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup node version
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+    - name: Checkout pixie-firmware
+      run: |
+        git clone ${{ github.server_url }}/firefly/pixie-firmware.git
+        cd pixie-firmware
+        git checkout main
+        git submodule deinit -- components/firefly-display
+        git submodule set-url -- components/firefly-display ${{ github.server_url }}/${{ github.repository}}.git
+        git submodule set-branch -b ${{ github.ref_name }} -- components/firefly-display
+        cat .gitmodules
+        git submodule update --init --remote --checkout --recursive -- components/firefly-display
+        git submodule update --init --remote --checkout --recursive -- components/firefly-display
+    - name: Verify scene and display components
+      run: |
+        cd pixie-firmware
+        ls -la components/firefly-scene
+        ls -la components/firefly-display
+        git submodule status
+    - name: Build pixie-firmware using Docker
+      id: build
+      run: |
+        cd pixie-firmware
+        docker run --rm -v $PWD:/project -w /project -e HOME=/tmp espressif/idf idf.py build
+    - name: Verify assets
+      run: |
+        cd pixie-firmware
+        ls -l build/pixie.bin
+        ls -l build/bootloader/bootloader.bin
+        ls -l build/partition_table/partition-table.bin
