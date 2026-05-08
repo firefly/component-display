@@ -14,7 +14,9 @@
 #include <driver/spi_master.h>
 #include <driver/gpio.h>
 #include <hal/gpio_ll.h>
+#include "soc/gpio_reg.h"
 #include "soc/gpio_struct.h"
+#include "soc/soc.h"
 
 #include "firefly-display.h"
 #include "commands.h"
@@ -275,8 +277,8 @@ static void st7789_await_fragment(_Context *context) {
 // requires using malloc because the memory acquired must be
 // DMA-compatible.
 FfxDisplayContext ffx_display_init(FfxDisplaySpiBus spiBus, uint8_t pinDC,
-        uint8_t pinReset, FfxDisplayRotation rotation,
-        FfxRenderFunc renderFunc, void *renderContext) {
+  uint8_t pinReset, FfxDisplayRotation rotation, FfxRenderFunc renderFunc,
+  void *renderContext) {
 
     // Check the dimensions are safe (the #error checks this too)
     assert((DISPLAY_HEIGHT % FfxDisplayFragmentHeight) == 0);
